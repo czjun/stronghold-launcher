@@ -17,4 +17,9 @@ contextBridge.exposeInMainWorld('sp', {
   // 与当前游戏服务器同步素材（以服务端清单为权威，只下差异）
   syncAssets: () => ipcRenderer.invoke('assets-sync'),
   onAssetsSync: (cb) => { ipcRenderer.on('assets-sync-progress', (_e, d) => cb(d)); },
+  // 本地单人（内嵌服务器，不依赖线上服）
+  startLocal: () => ipcRenderer.invoke('local-server-start'),
+  stopLocal: () => ipcRenderer.invoke('local-server-stop'),
+  localStatus: () => ipcRenderer.invoke('local-server-status'),
+  onLocalProgress: (cb) => { ipcRenderer.on('local-server-progress', (_e, d) => cb(d)); },
 });

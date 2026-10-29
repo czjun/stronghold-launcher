@@ -11,14 +11,14 @@ const fs = require('node:fs');
 const { createAssetInterceptor } = require('./src/assets.js');
 const upd = require('./src/update.js');
 const setup = require('./src/assets-setup.js');
+const localSrv = require('./src/local-server.js');
 
 // ★ 中转站（目录服务）：0.3.3 起旧「中转大厅」失效，改为
 //   首次进入手动输入中转站地址 → 记住（relay.json）→ 之后自动使用，也可随时修改。
-const RELAY_PRESETS = [
-  'https://wei.bbsmc.cn',
-  'https://game.rainya.me',
-  'https://game.xiaolubao.com',
-];
+// ★ 不内置任何中转站地址：避免为特定站点背书/争议。
+//   用户自己填写一次（会记进 relay.json 的 history），之后从「快捷地址」里点选。
+//   这里保留数组是为了接口形状稳定（relayQuickList 仍按「预设 + 历史」合并）。
+const RELAY_PRESETS = [];
 // ★ 数据与素材都放在【安装目录】下 —— 随游戏一起、好找、卸载即清（与主流游戏一致）。
 //   优先级：SP_DATA_DIR / SP_ASSETS_DIR（高级用法）→ 安装目录 → LOCALAPPDATA 回退（安装目录不可写时）
 //   注意：setPath('userData') 必须在 app ready 之前调用，所以这段在模块顶层。
@@ -162,9 +162,9 @@ function writeLastServer(url) {
 }
 /** 不同中转站的目录接口字段名不一样，统一成界面用的形状。
  *  已知三种：
- *    · /api/servers  → {servers:[{title,url,region,version,notes,tags,status…}]}   (wei.bbsmc.cn)
- *    · /api/servers  → {servers:[{name,address,regionLabel,note,health…}]}         (game.xiaolubao.com)
- *    · /api/entries  → {entries:[{name,url,online,humans,rooms,gameVersion…}]}     (game.rainya.me 门户)
+ *    · /api/servers  → {servers:[{title,url,region,version,notes,tags,status…}]}   (中转站 A 的 JSON 形状)
+ *    · /api/servers  → {servers:[{name,address,regionLabel,note,health…}]}         (中转站 B 的 JSON 形状)
+ *    · /api/entries  → {entries:[{name,url,online,humans,rooms,gameVersion…}]}     (中转站 C「门户」型 JSON 形状)
  */
 function normalizeServers(list) {
   const out = [];
@@ -296,6 +296,48 @@ async function runAssetSync(urlOverride, force = false) {
     syncCtl = null;
   }
 }
+/** 本地单人服务器（null = 未启动） */
+let localServer = null;
+
+/** 内嵌服务器根目录：开发时 = electron/server-embedded；打包后 = resources/server-embedded */
+function embeddedServerRoot() {
+  const candidates = [
+    path.join(__dirname, 'server-embedded'),                                   // 开发（源码目录）
+    path.join(process.resourcesPath || '', 'server-embedded'),                 // 打包后（extraResources）
+    path.join(app.getAppPath(), 'server-embedded'),                            // asar 内（若打进 asar）
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', 'server-embedded'),
+  ];
+  for (const c of candidates) {
+    try { if (c && fs.existsSync(path.join(c, 'server', 'index.js'))) return c; } catch { /* ignore */ }
+  }
+  return null;
+}
+
+/** 启动本地单人服务器（幂等：已在跑就复用） */
+async function ensureLocalServer() {
+  if (localServer) return localServer;
+  const root = embeddedServerRoot();
+  if (!root) throw new Error('安装包里缺少内嵌服务器文件（server-embedded）');
+  log('启动本地单人服务器…');
+  localServer = await localSrv.startLocalServer({
+    appRoot: root,
+    dataRoot: DATA.root,
+    preferredPort: 3001,
+    log,
+    onProgress: (p) => { try { if (win && !win.isDestroyed()) win.webContents.send('local-server-progress', p); } catch { /* ignore */ } },
+  });
+  return localServer;
+}
+
+/** 停止本地单人服务器 */
+async function stopLocalServer() {
+  if (!localServer) return false;
+  try { localServer.stop(); } catch { /* ignore */ }
+  log('本地单人服务器已停止');
+  localServer = null;
+  return true;
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1100, height: 820, backgroundColor: '#0c0f0e', show: false,
@@ -402,13 +444,13 @@ app.whenReady().then(() => {
   // 选择界面从主进程拿列表（避开 CORS）——现在走「中转站地址」
   ipcMain.handle('servers', async () => {
     const relay = readRelay();
-    if (!relay) return { ok: false, needRelay: true, error: '还没有设置中转站地址', relay: '', presets: RELAY_PRESETS };
+    if (!relay) return { ok: false, needRelay: true, error: '还没有设置中转站地址', relay: '', presets: relayQuickList('') };
     try {
       const r = await fetchRelayServers(relay);
-      return { ok: true, relay, servers: r.servers, pollSeconds: r.pollSeconds, presets: RELAY_PRESETS };
+      return { ok: true, relay, servers: r.servers, pollSeconds: r.pollSeconds, presets: relayQuickList(relay) };
     } catch (e) {
       log(`读取中转站失败（${relay}）：${(e && e.message) || e}`);
-      return { ok: false, error: String((e && e.message) || e), relay, presets: RELAY_PRESETS };
+      return { ok: false, error: String((e && e.message) || e), relay, presets: relayQuickList(relay) };
     }
   });
   ipcMain.handle('relay-get', () => { const cur = readRelay(); return { url: cur, presets: relayQuickList(cur), builtin: RELAY_PRESETS, history: readRelayHistory() }; });
@@ -429,6 +471,22 @@ app.whenReady().then(() => {
       clearTimeout(t); return r.ok;
     } catch { return null; }
   });
+  // 本地单人：启动内嵌服务器并把窗口指过去
+  ipcMain.handle('local-server-start', async () => {
+    try {
+      const s = await ensureLocalServer();
+      writeLastServer(s.url);
+      if (win) win.loadURL(s.url);
+      return { ok: true, url: s.url, port: s.port };
+    } catch (e) {
+      const msg = String((e && e.message) || e);
+      log('本地单人启动失败：' + msg);
+      return { ok: false, error: msg };
+    }
+  });
+  ipcMain.handle('local-server-stop', async () => ({ ok: await stopLocalServer() }));
+  ipcMain.handle('local-server-status', () => ({ ok: !!localServer, url: localServer ? localServer.url : null, port: localServer ? localServer.port : null }));
+
   ipcMain.handle('open', (_e, url) => {
     const u = String(url);
     log(`进入：${u}`);
@@ -499,6 +557,7 @@ app.whenReady().then(() => {
 
 // 退出前把「素材哈希绑定」立即落盘 —— 下次启动才能直接命中本机素材（否则每次启动都要回源确认一遍）
 app.on('before-quit', () => {
+  try { if (localServer) { localServer.stop(); localServer = null; log('退出：已停止本地单人服务器'); } } catch { /* ignore */ }
   try { interceptor.flushBindings(); } catch (e) { /* ignore */ }
   // 退出时立刻中止正在进行的素材同步（否则"已经关闭客户端还在下载"）
   try { if (syncCtl) { syncCtl.abort(); log('退出：已中止素材同步'); } } catch (e) { /* ignore */ }

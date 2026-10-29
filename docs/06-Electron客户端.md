@@ -671,12 +671,127 @@ POST disable / remove          → ok，删除后回到 22 张          PASS
 ① 复用自己的 API 前先看真实签名：sendJson(req,res,status,obj) 不是 sendJson(res,status,obj)。
 ② 拖拽把手的豁免要区分「把手本身」与「把手内部元素」，否则会互相打架。
 ```
+### 11.5.9 🆕 客户端看不到新表情：清单 URL 无哈希 → 永远命中本机旧文件（2026-10-26，v2.3.7）
+
+**现象**：后台新上传表情包后，**网页版正常显示**，客户端看不到（只有旧的那些）。
+
+**根因链**：
+
+```
+① 升级 0.3.3 后服务端给素材 URL 加了 ~hash，但表情清单 index.json 不在素材清单里
+   （local-assets.json 没有 sp-community-emotes 条目）→ 它的 URL 不带哈希
+② 拦截器 contentHashOf() 返回 null → matchesContentHash() 第一行 if (!serverHash) return true
+   → **永远判定命中本机文件**，从不回源、永不过期
+③ 客户端本机 index.json 停在 10-26 01:33 的 20 条，服务器已是 25 条
+```
+
+**修复过程中又踩一个坑**：加「清单强制回源」后，回源处理整段被 `if (cpath && ...)` 包着，
+而清单的 `cpath` 被设为 `null` → **拿到了新清单但没有写回本机** → 下次启动还是旧的。
+
+**最终修法（三处）**：
+
+```js
+// ① 清单不吃本机缓存
+const isRuntimeManifest = /\/assets\/local\/sp-community-emotes\/index\.json$/i.test(pathname);
+if (!isRuntimeManifest && matchesContentHash(file, serverHash)) { ...命中... }
+
+// ② 清单不吃代理缓存
+const cpath = isRuntimeManifest ? null : cachePathFor(req.url);
+
+// ③ 回源处理不再依赖 cpath（清单要写回本机，只是不落代理缓存）
+if (!isRange && req.method === 'GET' && res && res.ok) {
+  ...写回本机...
+  if (cpath && buf.length <= MAX_CACHE_BYTES) { ...落缓存... }
+}
+```
+
+**验证**（`temp/_test-manifest-fresh.js`、`temp/_verify_writeback.js`、`temp/_test-nofile.js`）：
+
+```
+本机旧清单 → 回源拿新清单 → 本机文件也被更新（20 → 22 条）    PASS
+本机无清单   → 回源 + 落盘                                    PASS
+服务器再加一张 → 立刻可见（不重启）                            PASS
+普通素材（带哈希）→ 仍本机命中 0 回源（没误伤）                 PASS
+```
+
+**教训**：
+
+```
+「不带内容哈希」的 URL 在拦截器里等于「永远有效」——运行时清单、配置类文件必须特殊处理。
+代理层自己消化缓存语义时，注意「写回源文件」和「落代理缓存」是两件事，别用同一个条件把它们绑死。
+```
+
+### 11.5.10 🔴 本地单人启动失败：打包漏 vendor/ 等目录 → 游戏脚本加载失败（2026-10-29，v2.3.7）
+
+**现象**：本地单人模式起服务器后，页面显示
+`<div id="boot-err" class="boot__err">游戏脚本加载失败，请检查网络连接后刷新页面。</div>`
+
+**根因**：内嵌服务器的 `public/` 只拷了 `js / css / i18n / icons / studio`，
+**漏了 `vendor/`（3.5 MB，preact / htm / pixi / pixi-spine）**，而 `index.html` 用 importmap 引用了它 ——
+缺一个模块文件，整条 module graph 就加载失败。
+
+**修复**：补齐 `vendor/ fonts/ admin/ dev/` + `public` 根文件（index.html / manifest.json / sw.js / announcement.json）。
+
+**验证方法（必做，最可靠）**：
+
+```js
+// 把 index.html 里所有本地引用逐个 fetch，必须全 200
+const refs = [...new Set([...html.matchAll(/(?:src|href)="(\/[^"]+)"/g)].map(m => m[1]))];
+for (const u of refs) { const r = await fetch(base + u); if (r.status !== 200) bad.push(u); }
+// 2.3.7 实测：37 个引用全部 200
+```
+
+再用 BrowserWindow 真实加载，确认 `document.getElementById('boot-err').textContent === ''`。
+
+**内嵌服务器打包清单（59 MB / 1199 文件）**：
+
+```
+server/     6.2 MB    shared/  0.7 MB    plugins/ 0.1 MB
+data/      32.9 MB    packs/            tools/   1.5 MB
+node_modules/  仅 ws + acorn（服务端真正 import 的）
+start-local.mjs  本地单人入口（programmatic 调 startServer，studio: false）
+public/
+  index.html manifest.json sw.js announcement.json   ← 必须
+  js/ 4MB      css/ 0.7MB    vendor/ 3.5MB **必须**   fonts/ 0.2MB **必须**
+  i18n/ 0.7MB   icons/       studio/ 0.3MB（加载期 import，不能省）
+  admin/ 0.1MB  dev/ 7.5MB
+⚠️ 不含 public/assets/（1 GB 游戏素材，由客户端本机素材库提供）
+```
+
+### 11.5.11 🆕 中转站改为「完全不内置」（2026-10-29，v2.3.7）
+
+**动机**：内置第三方中转站地址会给特定站点背书，容易引起争议。
+
+**改动**：
+
+| 项 | 改前 | 改后 |
+|---|---|---|
+| `RELAY_PRESETS` | 3 个真实站点 | **`[]`** |
+| 快捷地址来源 | 预设 + 历史 | **仅历史**（用户自己填过的，最近优先、上限 8） |
+| 代码注释里的域名 | 真实域名 | 改为「中转站 A/B/C 的 JSON 形状」 |
+| 前端占位符 | `https://wei.bbsmc.cn` | `https://relay.example.com` |
+| README | 示例真实站点 | 「客户端不内置任何中转站，需自己填」 |
+
+**约束（硬规则）**：代码、注释、文案里**不得再出现任何真实中转站域名**（`wei.bbsmc.cn` / `game.rainya.me` / `game.xiaolubao.com` 等）。
+
+**首次体验**：快捷栏为空 + 显示「请先设置中转站地址」→ 用户填一次 → 进 `relay.json` 的 `history` → 之后可点选。
+
+**relay.json 结构**：
+
+```json
+{ "url": "https://用户当前用的", "history": ["最近的", "次近的", ...], "updatedAt": 1793265499333 }
+```
+
 ### 11.6 仍待完成
 
 | # | 项 | 说明 |
 |---|---|---|
-| 1 | 「本地开服」入口 | `utilityProcess.fork('server/index.js')` 起本机服 + 选择界面加入口 |
+| 1 | ~~「本地开服」入口~~ | ✅ **已完成（v2.3.7）**：`src/local-server.js` 子进程 + 大厅「启动本地单人」按钮 |
 | 2 | 应用图标 | 现在是 Electron 默认图标（`build.icon`） |
 | 3 | 多服独立分区（可选） | 按 host 用 `persist:<host>`，各服存储/身份互不干扰 |
 | 4 | 代码签名 | 无证书 → SmartScreen 首次提示 |
+| 5 | 手机端大厅适配 | 游戏页已是完整 PWA；大厅只有 900px 一个断点，手机竖屏会挤（用户暂缓） |
+| 6 | 表情包本地化 | 表情图和清单目前从服务器取；可考虑随客户端预置（注意体积） |
+
+> 📌 **状态总览见 [`09-客户端当前状态总览.md`](09-客户端当前状态总览.md)** —— 换会话时先读那页。
 

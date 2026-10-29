@@ -1,7 +1,7 @@
 {
   "name": "stronghold-launcher-electron",
   "productName": "StrongholdLauncher",
-  "version": "2.3.6",
+  "version": "2.3.7",
   "description": "卫戍协议：盟约 · Electron 客户端（页面来自目标服，素材走本机磁盘）",
   "main": "main.js",
   "private": true,
@@ -15,7 +15,12 @@
     "electron-builder": "^25.0.0"
   },
   "build": {
-    "publish": [ { "provider": "generic", "url": "https://wei.czjun.top:11451/launcher/electron/" } ],
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://wei.czjun.top:11451/launcher/electron/"
+      }
+    ],
     "appId": "top.czjun.stronghold.launcher",
     "productName": "StrongholdLauncher",
     "files": [
@@ -41,7 +46,19 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "shortcutName": "卫戍协议：盟约"
-    }
+    },
+    "extraResources": [
+      {
+        "filter": [
+          "**/*"
+        ],
+        "from": "server-embedded",
+        "to": "server-embedded"
+      }
+    ],
+    "asarUnpack": [
+      "src/local-server.js"
+    ]
   },
   "dependencies": {
     "electron-updater": "^6.8.9"

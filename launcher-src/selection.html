@@ -162,7 +162,18 @@ body::after{content:"";position:fixed;width:46vw;height:46vw;left:52%;top:-16%;z
 .gate p{margin:8px 0 0;color:var(--sub);font-size:12px;line-height:1.7}
 .gate.show{display:block}
 /* ===== 版本/更新/素材 条 ===== */
-.strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px; border:1px solid var(--line);background:var(--paper);margin-top:12px; font-family:var(--code);font-size:10.5px;letter-spacing:.08em;color:var(--sub)}
+/* ===== 本地单人入口 ===== */
+.solo{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  padding:12px 14px;margin-top:14px;border:1px solid var(--line);background:var(--paper);
+  border-left:3px solid var(--block)}
+.solo__text b{display:block;font-size:14px;color:var(--ink);margin-bottom:2px}
+.solo__text span{font-size:11.5px;color:var(--sub)}
+.solo__prog{padding:8px 14px;border:1px solid var(--line);border-top:0;background:var(--row);
+  font-size:11.5px;color:var(--sub);font-family:var(--code)}
+.solo__prog[hidden]{display:none}
+.solo__prog.err{color:#b3261e}
+.btn-go#solo-start{padding:9px 18px;white-space:nowrap}
+.btn-go#solo-start:disabled{opacity:.55;cursor:default}.strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px; border:1px solid var(--line);background:var(--paper);margin-top:12px; font-family:var(--code);font-size:10.5px;letter-spacing:.08em;color:var(--sub)}
 .strip b{color:var(--ink)}
 .strip .btn-upd{padding:5px 12px;background:var(--orange);color:#fff;border:0;cursor:pointer; font-family:var(--code);font-size:10.5px;letter-spacing:.12em;animation:rl-pulse 1.8s infinite}
 .strip .bar{flex:1 1 140px;height:5px;background:var(--tag);overflow:hidden;display:none}
@@ -183,7 +194,16 @@ footer code{font-family:var(--code);background:var(--tag);padding:1px 5px;color:
 </script>
 </head><body> <!-- 开机序列：圆环聚拢 → 描边绘制 → 标题收拢 → 揭示大厅 -->
 <div id="sp-boot" class="phase1"> <div class="bg-grid"></div> <div style="display:grid;place-items:center;justify-items:center"> <div class="rings"> <svg class="r1" viewBox="0 0 240 240"><circle cx="120" cy="120" r="104"/></svg> <svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="76" stroke-dasharray="478" stroke-dashoffset="478"/></svg> <svg viewBox="0 0 240 240"><path d="M120 22 V46 M120 194 V218 M22 120 H46 M194 120 H218"/></svg> <div class="mid">卫戍协议<em>盟约</em></div> </div> <div class="title">卫戍协议：盟约</div> <div class="status"><span>CONNECTING</span><span class="bar"><i></i></span><span id="sp-boot-id">00</span></div> <div class="skip">点击任意处跳过</div> </div>
-</div> <div class="wrap"> <!-- 顶栏 --> <div class="top"> <div class="brand"> <b>STRONGHOLD</b><b>PROTOCOL</b> <i>SERV-LIST</i><em>COMMUNITY</em> </div> <div class="top-right"> <span class="chip">客户端 <b id="sp-ver-t" style="font-family:var(--code)">…</b></span> <button class="chip" id="sp-check-btn" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.12em">检查更新</button> </div> </div> <!-- HERO --> <div class="hero"> <div> <div class="kicker"><span>SELECTING NODES</span></div> <h1 class=""><b>卫戍协议：盟约</b></h1> <p class="">不同的驻地，相同的盟约。查看服务器状态与玩法，找到你的下一场模拟。</p> </div> <div class="nums"> <div class=""><b id="n-online">—</b><small>可用服务器</small></div> <div class=""><b id="n-total">—</b><small>收录节点</small></div> <div class=""><b id="n-poll">30</b><small>秒刷新</small></div> </div> </div> <!-- 版本/更新/素材 --> <div class="strip"> <span>CLIENT <b id="sp-ver">…</b></span> <span id="sp-upd-msg">正在检查更新…</span> <button class="btn-upd" id="sp-upd-btn" style="display:none">立即更新</button> <span class="bar" id="sp-upd-bar"><i></i></span> <span id="sp-assets">素材：检查中…</span> <button class="chip" id="sp-sync" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.1em" title="按当前服务器清单对齐本机素材（只下差异）">同步素材</button> </div> <div id="sp-prog"></div> <!-- 中转站地址（只需设置一次，会记住；可随时修改）--> <div class="relay" id="relay-bar"> <span class="lbl">中转站</span> <input id="relay-url" placeholder="中转站地址（例：https://wei.bbsmc.cn）—— 不是游戏服务器地址" autocomplete="off" spellcheck="false"> <button class="btn-go" id="relay-save">保存并刷新</button> <div class="relay-presets" id="relay-presets"></div> </div> <div class="gate" id="relay-gate"> <b>先设置中转站地址</b> <p>原来的中转大厅已失效。<br>请在上方填写中转站地址（或点快捷地址），<b>只需设置一次</b>，之后会自动记住；想换服随时回来改。</p> </div> <!-- 列表 --> <div class="sec-head" style="margin-top:22px"> <span>01 / NODE SELECT　服务器列表</span> <span class="r"><span id="sp-count">读取中…</span><span class="refresh" id="sp-refresh">刷新 ↻</span></span> </div> <div class="list" id="list"><div style="padding:18px 4px;color:var(--sub);font-size:12.5px">正在读取服务器目录…</div></div> <!-- 第三方 --> <div class="manual"> <span class="lbl">MANUAL</span> <input id="u" placeholder="游戏服务器地址（例：https://sp.bbsmc.cn）" autocomplete="off" spellcheck="false"> <button class="btn-go" id="go">进入</button> <a class="try" id="try-thick" style="margin:0;white-space:nowrap">用本机素材试</a> <div class="hint">↑ 这里填<b>游戏服务器地址</b>（直接开服的那台，例：<code>https://sp.bbsmc.cn</code>），<b>不是中转站地址</b>；中转站地址请填在上方「中转站」栏。</div> </div> <footer> <div class="community"> <span class="chip dark">CONNECTED BY THE COMMUNITY</span> <span>服务器数据来自社区目录 · 各服由社区维护者独立运营，版本与玩法以服务器实际内容为准。</span> </div> <div> 进入后素材由本机提供（页面仍来自该服务器，保持各服自己的界面与规则）； 未命中的资源会自动回退到该服务器。返回大厅：菜单「游戏 → 返回大厅」或 <code>Ctrl+H</code>。 </div> </footer>
+</div> <div class="wrap"> <!-- 顶栏 --> <div class="top"> <div class="brand"> <b>STRONGHOLD</b><b>PROTOCOL</b> <i>SERV-LIST</i><em>COMMUNITY</em> </div> <div class="top-right"> <span class="chip">客户端 <b id="sp-ver-t" style="font-family:var(--code)">…</b></span> <button class="chip" id="sp-check-btn" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.12em">检查更新</button> </div> </div> <!-- HERO --> <div class="hero"> <div> <div class="kicker"><span>SELECTING NODES</span></div> <h1 class=""><b>卫戍协议：盟约</b></h1> <p class="">不同的驻地，相同的盟约。查看服务器状态与玩法，找到你的下一场模拟。</p> </div> <div class="nums"> <div class=""><b id="n-online">—</b><small>可用服务器</small></div> <div class=""><b id="n-total">—</b><small>收录节点</small></div> <div class=""><b id="n-poll">30</b><small>秒刷新</small></div> </div> </div> <!-- 版本/更新/素材 --> <!-- 本地单人（内嵌服务器，不需要任何线上服） -->
+<div class="solo" id="solo-bar">
+  <div class="solo__text">
+    <b>本地单人</b>
+    <span>不连线上服务器，直接在客户端里开一局单人（数据全部在本机）</span>
+  </div>
+  <button class="btn-go" id="solo-start">启动本地单人</button>
+</div>
+<div id="solo-prog" class="solo__prog" hidden></div>
+<div class="strip"> <span>CLIENT <b id="sp-ver">…</b></span> <span id="sp-upd-msg">正在检查更新…</span> <button class="btn-upd" id="sp-upd-btn" style="display:none">立即更新</button> <span class="bar" id="sp-upd-bar"><i></i></span> <span id="sp-assets">素材：检查中…</span> <button class="chip" id="sp-sync" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.1em" title="按当前服务器清单对齐本机素材（只下差异）">同步素材</button> </div> <div id="sp-prog"></div> <!-- 中转站地址（只需设置一次，会记住；可随时修改）--> <div class="relay" id="relay-bar"> <span class="lbl">中转站</span> <input id="relay-url" placeholder="中转站地址（例：https://relay.example.com）—— 不是游戏服务器地址" autocomplete="off" spellcheck="false"> <button class="btn-go" id="relay-save">保存并刷新</button> <div class="relay-presets" id="relay-presets"></div> </div> <div class="gate" id="relay-gate"> <b>先设置中转站地址</b> <p>原来的中转大厅已失效。<br>请在上方填写中转站地址（或点快捷地址），<b>只需设置一次</b>，之后会自动记住；想换服随时回来改。</p> </div> <!-- 列表 --> <div class="sec-head" style="margin-top:22px"> <span>01 / NODE SELECT　服务器列表</span> <span class="r"><span id="sp-count">读取中…</span><span class="refresh" id="sp-refresh">刷新 ↻</span></span> </div> <div class="list" id="list"><div style="padding:18px 4px;color:var(--sub);font-size:12.5px">正在读取服务器目录…</div></div> <!-- 第三方 --> <div class="manual"> <span class="lbl">MANUAL</span> <input id="u" placeholder="游戏服务器地址（例：https://game.example.com:11451）" autocomplete="off" spellcheck="false"> <button class="btn-go" id="go">进入</button> <a class="try" id="try-thick" style="margin:0;white-space:nowrap">用本机素材试</a> <div class="hint">↑ 这里填<b>游戏服务器地址</b>（直接开服的那台，例：<code>https://game.example.com:11451</code>），<b>不是中转站地址</b>；中转站地址请填在上方「中转站」栏。</div> </div> <footer> <div class="community"> <span class="chip dark">CONNECTED BY THE COMMUNITY</span> <span>服务器数据来自社区目录 · 各服由社区维护者独立运营，版本与玩法以服务器实际内容为准。</span> </div> <div> 进入后素材由本机提供（页面仍来自该服务器，保持各服自己的界面与规则）； 未命中的资源会自动回退到该服务器。返回大厅：菜单「游戏 → 返回大厅」或 <code>Ctrl+H</code>。 </div> </footer>
 </div> <script>
  const $ = (s) => document.querySelector(s);
  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -301,6 +321,53 @@ footer code{font-family:var(--code);background:var(--tag);padding:1px 5px;color:
  };
  updAssets();
  setInterval(updAssets, 3000);
+ /* ===== 本地单人（内嵌服务器）=====
+    点「启动本地单人」→ 主进程在客户端内起一个服务器子进程
+    → 就绪后窗口直接进入该地址。全程不依赖任何线上服。 */
+ (function initSolo() {
+   const btn = $('#solo-start');
+   const prog = $('#solo-prog');
+   if (!btn) return;
+   let busy = false;
+   const say = (text, isErr) => {
+     if (!prog) return;
+     prog.hidden = !text;
+     prog.textContent = text || '';
+     prog.classList.toggle('err', !!isErr);
+   };
+   try {
+     window.sp.onLocalProgress((p) => {
+       if (!p) return;
+       if (p.phase === 'start') say(p.text || '启动本地服务器…');
+       else if (p.phase === 'ready') say('本地服务器已就绪' + (p.version ? '（v' + p.version + '）' : '') + '，正在进入…');
+     });
+   } catch (e) { /* ignore */ }
+
+   btn.addEventListener('click', async () => {
+     if (busy) return;
+     busy = true;
+     btn.disabled = true;
+     const old = btn.textContent;
+     btn.textContent = '启动中…';
+     say('正在启动本地服务器（首次可能需要几秒）…');
+     try {
+       const r = await window.sp.startLocal();
+       if (!r || !r.ok) {
+         say('启动失败：' + ((r && r.error) || '未知错误') + '（详情见客户端日志）', true);
+         btn.textContent = old;
+       } else {
+         say('已进入本地单人（端口 ' + r.port + '）');
+       }
+     } catch (e) {
+       say('启动失败：' + ((e && e.message) || e), true);
+       btn.textContent = old;
+     } finally {
+       busy = false;
+       btn.disabled = false;
+       if (btn.textContent === '启动中…') btn.textContent = old;
+     }
+   });
+ })();
   /* ===== 同步素材（大厅按钮）=====
      按「当前服务器」的清单对齐本机素材：只下差异，带进度；结束后刷新状态。
      出错/中止在按钮上显示原因，不弹窗打断。 */
