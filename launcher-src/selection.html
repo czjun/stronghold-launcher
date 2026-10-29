@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>卫戍协议：盟约 · 选择服务器</title>
+<style>
+/* ===== A1 亮色纸张 —— 工业报刊 / 技术蓝图 ===== */
+:root{ --bg:#ecebe7; --paper:#f7f6f3; --row:#fbfaf8; --ink:#141414; --text:#3d3c39; --sub:#6d6c68; --line:#cfcdc7; --block:#141414; --on-block:#fff; --block-sub:#a9a8a3; --tag:#e4e2dc; --ok:#3f7d12; --orange:#f07d1a; --lime:#9ee03a; --red:#d8432f; --amber:#e3a21a; --code:Bahnschrift,"DIN Alternate","Roboto Condensed","Arial Narrow","Segoe UI",sans-serif; --cubic:cubic-bezier(.7,0,.3,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text); font:14px/1.55 "Segoe UI","Microsoft YaHei","PingFang SC",sans-serif; -webkit-font-smoothing:antialiased}
+/* 背景：细网格 + 缓慢漂移的光斑（极低存在感，只让画面不死） */
+body::before{content:"";position:fixed;inset:-10%;z-index:0;pointer-events:none;background: linear-gradient(var(--ink) 1px,transparent 1px) 0 0/100% 34px, linear-gradient(90deg,var(--ink) 1px,transparent 1px) 0 0/34px 100%; opacity:.035}
+/* ★ 默认可见。只有在「正在播开机动画」期间才隐藏（html.sp-booting 由内联脚本极早加上， 刷新时如果有 session 标记则不添加 → 页面立即可见，不会白屏）。 */
+html.sp-booting .wrap{opacity:0}
+body.sp-ready .wrap{animation:rl-show .5s ease-out both}
+body::after{content:"";position:fixed;width:46vw;height:46vw;left:52%;top:-16%;z-index:0;pointer-events:none; background:radial-gradient(circle,rgba(240,125,26,.10),transparent 62%); animation:rl-drift 24s ease-in-out infinite}
+@keyframes rl-drift{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(-24px,18px) rotate(8deg)}} .wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 28px 64px} /* ===== 顶栏：品牌 + 版本 + 管理入口 ===== */
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px; padding:22px 0 26px;border-bottom:1px solid var(--line)}
+.brand{display:grid;line-height:1.02;font-family:var(--code);letter-spacing:.04em}
+.brand b{font-size:22px;font-weight:900;color:var(--ink)}
+.brand i{font-style:normal;font-size:10px;letter-spacing:.34em;color:var(--sub);margin-top:4px}
+.brand em{font-style:normal;font-size:9px;letter-spacing:.2em;color:var(--orange); border:1px solid var(--orange);padding:1px 5px;margin-top:8px;width:max-content}
+.top-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end} /* ===== 标签 / 编号块 / 状态牌 通用件 ===== */
+.chip{font-family:var(--code);font-size:10px;letter-spacing:.16em;color:var(--ink); background:var(--tag);padding:4px 9px;border:1px solid var(--line)}
+.chip.dark{background:var(--block);color:var(--on-block);border-color:var(--block)}
+.chip.orange{background:var(--orange);color:#fff;border-color:var(--orange)}
+.tile{position:relative;overflow:hidden;background:var(--block);color:var(--on-block); display:flex;flex-direction:column;align-items:center;justify-content:center; padding:12px 4px;font-family:var(--code)}
+.tile b{font-size:19px;font-weight:900;letter-spacing:.02em}
+.tile small,.tile em{font-size:8px;letter-spacing:.1em;font-style:normal;color:var(--block-sub)} /* 擦除进场：报刊式揭示（核心动效） */
+.wipe{position:relative;overflow:hidden}
+.wipe>b,.wipe>span,.wipe>h1,.wipe>p{display:inline-block;animation:rl-wipe-text .9s var(--cubic) both}
+.wipe::after{content:"";position:absolute;inset:0;background:var(--ink); transform-origin:left;animation:rl-wipe-bar 1s var(--cubic) both}
+@keyframes rl-wipe-bar{0%{transform:scaleX(0)}45%{transform:scaleX(1);transform-origin:left} 55%{transform:scaleX(1);transform-origin:right}100%{transform:scaleX(0);transform-origin:right}}
+@keyframes rl-wipe-text{0%,46%{opacity:0}47%,100%{opacity:1}}
+@keyframes rl-up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes rl-pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes rl-blink{50%{opacity:0}}
+@keyframes rl-pulse{0%,100%{box-shadow:0 0 0 0 rgba(63,125,18,.55)}70%{box-shadow:0 0 0 6px rgba(63,125,18,0)}}
+@keyframes rl-scan{0%{transform:translateY(-100%)}100%{transform:translateY(1200%)}}
+@keyframes rl-bar{from{transform:scaleX(0)}to{transform:scaleX(1)}} /* ===== 开机序列：圆环聚拢 / SVG 描边 / 字距收拢 ===== */
+@keyframes rl-ring-in{from{transform:scale(3.4) rotate(-140deg);opacity:0}30%{opacity:1}to{transform:scale(1) rotate(0);opacity:1}}
+@keyframes rl-ring-out{to{transform:scale(.82);opacity:0}}
+@keyframes rl-ring-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes rl-dash-on{to{stroke-dashoffset:0}}
+@keyframes rl-converge{from{letter-spacing:.9em;opacity:0;filter:blur(6px)}60%{opacity:1}to{letter-spacing:.08em;opacity:1;filter:blur(0)}}
+@keyframes rl-show{to{opacity:1}}
+@keyframes rl-pop-on{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes rl-typing{from{width:0}to{width:100%}}
+@keyframes rl-count{from{opacity:0;transform:translateY(8px) scale(.9)}to{opacity:1;transform:none}}
+@keyframes rl-line{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes rl-flash{0%,100%{background:transparent}50%{background:rgba(240,125,26,.18)}}
+@keyframes rl-tile-in{from{clip-path:inset(100% 0 0 0)}to{clip-path:inset(0 0 0 0)}}
+@keyframes rl-shine{from{transform:translateX(-120%)}to{transform:translateX(220%)}} /* 开机遮罩：覆盖全屏，纯色纸张，退场用 clip-path 揭示 */
+#sp-boot{position:fixed;inset:0;z-index:90;background:var(--bg);color:var(--ink); display:grid;place-items:center;align-content:center;overflow:hidden;font-family:var(--code);cursor:pointer; transition:clip-path .65s var(--cubic);clip-path:inset(0 0 0 0)}
+#sp-boot.out{clip-path:inset(0 0 100% 0)}
+#sp-boot .bg-grid{position:absolute;inset:0;opacity:.05; background:linear-gradient(var(--ink) 1px,transparent 1px) 0 0/100% 34px, linear-gradient(90deg,var(--ink) 1px,transparent 1px) 0 0/34px 100%}
+/* 圆环容器：240px，聚拢进入 */
+#sp-boot .rings{position:relative;width:240px;height:240px;display:grid;place-items:center}
+#sp-boot .rings svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#sp-boot.phase1 .rings{animation:rl-ring-in 1s var(--cubic) both}
+#sp-boot.phase2 .rings svg.r1{animation:rl-ring-spin 6s linear infinite}
+/* SVG 描边绘制 */
+#sp-boot .rings circle,#sp-boot .rings path{stroke:var(--ink);fill:none;stroke-width:1.6; stroke-dasharray:900;stroke-dashoffset:900}
+#sp-boot.phase2 .rings circle,#sp-boot.phase2 .rings path{animation:rl-dash-on 1.3s var(--cubic) both}
+#sp-boot .rings .mid{font-family:var(--code);font-weight:900;font-size:17px;line-height:1.1; letter-spacing:.04em;color:var(--ink);opacity:0;text-align:center;white-space:nowrap}
+#sp-boot.phase2 .rings .mid{animation:rl-pop-on .45s var(--cubic) .5s both}
+#sp-boot .rings .mid em{display:block;font-style:normal;font-size:22px;letter-spacing:.3em;line-height:1.1; color:var(--orange);text-align:center;margin-top:4px;font-weight:900}
+/* 圆环整体：轻微呼吸，让中心不那么空 */
+#sp-boot.phase2 .rings{animation:rl-ring-breath 2.6s ease-in-out .4s infinite}
+@keyframes rl-ring-breath{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+/* 圆环内扫描线 */
+#sp-boot .rings::after{content:"";position:absolute;left:-6%;right:-6%;height:1px;top:50%; background:linear-gradient(90deg,transparent,var(--orange),transparent);opacity:0}
+#sp-boot.phase2 .rings::after{animation:rl-boot-scan 1.6s ease-in-out .9s infinite}
+@keyframes rl-boot-scan{0%{opacity:0;transform:translateY(-92px) scaleX(.3)} 40%{opacity:.9}100%{opacity:0;transform:translateY(92px) scaleX(1)}} /* 标题：字距收拢 */
+#sp-boot .title{margin-top:22px;text-align:center;font-weight:900;font-size:20px;letter-spacing:1.6em; color:var(--ink);opacity:0}
+#sp-boot.phase3 .title{animation:rl-converge .9s var(--cubic) both}
+/* 状态行 */
+#sp-boot .status{margin-top:14px;display:flex;align-items:center;gap:10px;font-size:10px; letter-spacing:.2em;color:var(--sub);opacity:0}
+#sp-boot.phase3 .status{animation:rl-show .4s .35s both}
+#sp-boot .status .bar{width:150px;height:2px;background:var(--tag);overflow:hidden}
+#sp-boot .status .bar i{display:block;height:100%;width:0;background:var(--orange)}
+#sp-boot .skip{position:absolute;bottom:26px;left:50%;transform:translateX(-50%); font-size:9.5px;letter-spacing:.24em;color:var(--sub);opacity:0}
+#sp-boot.phase3 .skip{animation:rl-show .5s .8s both}
+/* 离场：内容先淡出 */
+#sp-boot.out .rings,#sp-boot.out .title,#sp-boot.out .status,#sp-boot.out .skip{animation:rl-ring-out .35s ease-in both} /* ===== HERO ===== */
+.hero{position:relative}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:var(--ink); transform-origin:left;animation:rl-line .9s .35s var(--cubic) both}
+.hero{display:grid;grid-template-columns:minmax(280px,1fr) auto;gap:clamp(20px,4vw,52px); align-items:center;padding:clamp(26px,4vw,46px) 0 clamp(24px,3.4vw,40px)}
+.hero h1{margin:0 0 10px;font-size:clamp(30px,4.2vw,46px);line-height:1.06;color:var(--ink); font-weight:900;letter-spacing:.02em}
+.hero .kicker{font-family:var(--code);font-size:10px;letter-spacing:.3em;color:var(--sub);margin-bottom:12px}
+.hero p{margin:0;color:var(--sub);font-size:13px;max-width:46ch}
+.hero .nums{display:grid;grid-template-columns:repeat(3,minmax(74px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.hero .nums>div{background:var(--paper);padding:10px 12px;text-align:center; animation:rl-count .5s var(--cubic) both}
+.hero .nums>div:nth-child(1){animation-delay:.45s}
+.hero .nums>div:nth-child(2){animation-delay:.55s}
+.hero .nums>div:nth-child(3){animation-delay:.65s}
+.hero .nums b.changed{animation:rl-flash .7s ease-out}
+.hero .nums b{display:block;font-family:var(--code);font-size:24px;font-weight:900;color:var(--ink);line-height:1}
+.hero .nums small{display:block;margin-top:5px;font-size:9px;letter-spacing:.16em;color:var(--sub)}
+.hero .nums b.flash{animation:rl-blink .3s 2} /* ===== 区块标题 ===== */
+.sec-head::before{content:"";width:6px;height:6px;background:var(--orange);margin-right:10px; animation:rl-pulse 2.2s infinite}
+.sec-head>span:first-child{display:flex;align-items:center}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:14px; padding:10px 12px;background:var(--block);color:var(--on-block); font-family:var(--code);letter-spacing:.14em;font-size:11px}
+.sec-head .r{display:flex;align-items:center;gap:8px;color:var(--block-sub);font-size:10px;letter-spacing:.1em}
+.refresh{cursor:pointer;user-select:none;border:1px solid #3a3a3a;padding:3px 8px;color:#ddd; transition:background .15s,color .15s,border-color .15s}
+.refresh:hover{background:var(--orange);border-color:var(--orange);color:#fff}
+.refresh.busy{animation:rl-pulse .9s infinite} /* ===== 服务器行（编号块｜信息｜状态）===== */
+.list{display:grid;gap:10px;margin-top:10px}
+.srv{position:relative;display:grid;grid-template-columns:88px minmax(0,1fr) minmax(230px,300px); background:var(--row);border:1px solid var(--line); transition:transform .2s,box-shadow .2s,border-color .2s; animation:rl-up .5s var(--cubic) both}
+.srv:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(20,20,20,.10);border-color:var(--ink)}
+/* hover 四角橙色注册标记（原站精髓） */
+.srv::before,.srv::after{content:"";position:absolute;width:10px;height:10px; border:2px solid var(--orange);opacity:0;transition:opacity .2s;pointer-events:none}
+.srv::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.srv::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+.srv:hover::before,.srv:hover::after{opacity:1}
+.srv .tile{grid-row:1;border-right:1px solid var(--line);animation:rl-tile-in .5s var(--cubic) both}
+.enter{position:relative;overflow:hidden}
+.enter::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 20%,rgba(255,255,255,.35) 50%,transparent 80%); transform:translateX(-120%);pointer-events:none}
+.srv:hover .enter::after{animation:rl-shine .7s ease-out}
+.srv .tile b{font-size:22px}
+.srv-main{padding:12px 16px;min-width:0}
+.srv-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px}
+.srv-title .name{font-weight:800;font-size:15.5px;color:var(--ink)}
+.srv-title .meta{font-size:11px;color:var(--sub)}
+.srv-notes{color:var(--sub);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:2px 0 8px}
+.srv-tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-family:var(--code);font-size:9.5px;letter-spacing:.1em;padding:2px 6px; border:1px solid var(--line);color:var(--sub);background:var(--paper)}
+.tag.ok{color:var(--ok);border-color:#b7cfa0;background:#f2f7ec}
+.tag.maybe{color:#8a6b18;border-color:#e0cf9c;background:#fbf6e8}
+.tag.live{color:var(--orange);border-color:#f3c39c;background:#fdf1e7}
+.srv-side{border-left:1px dashed var(--line);padding:10px 14px;display:flex;flex-direction:column;gap:8px;justify-content:center}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-family:var(--code)}
+.stats div{background:var(--paper);border:1px solid var(--line);padding:4px 6px;text-align:center}
+.stats b{display:block;font-size:13px;color:var(--ink);line-height:1.1}
+.stats small{display:block;font-size:8px;letter-spacing:.1em;color:var(--sub);margin-top:2px}
+/* 状态点：绿点呼吸 */
+.dot{width:7px;height:7px;display:inline-block;border-radius:50%;margin-right:5px; background:var(--ok);animation:rl-pulse 2.4s ease-out infinite}
+.dot.off{background:var(--red);animation:none}
+.dot.unk{background:var(--amber);animation:none}
+.enter{display:block;text-align:center;padding:7px 10px;background:var(--block);color:var(--on-block); font-family:var(--code);font-size:11px;letter-spacing:.16em;text-decoration:none;cursor:pointer; border:1px solid var(--block);transition:background .15s,color .15s}
+.enter:hover{background:var(--orange);border-color:var(--orange);color:#fff}
+.try{display:block;text-align:center;margin-top:6px;font-size:10px;color:var(--sub); text-decoration:none;border:1px dashed var(--line);padding:4px 6px;cursor:pointer; transition:color .15s,border-color .15s}
+.try:hover{color:var(--orange);border-color:var(--orange)} /* ===== 第三方地址 ===== */
+.manual{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center; padding:12px 14px;border:1px solid var(--line);background:var(--paper);margin-top:14px}
+.manual .lbl{font-family:var(--code);font-size:10px;letter-spacing:.16em;color:var(--sub)}
+.manual input{width:100%;padding:8px 10px;border:1px solid var(--line);background:#fff;color:var(--ink); font:12.5px/1.4 ui-monospace,Consolas,monospace;transition:border-color .15s}
+.manual input:focus{outline:none;border-color:var(--ink)}
+.btn-go{padding:8px 16px;background:var(--block);color:var(--on-block);border:1px solid var(--block); font-family:var(--code);font-size:11px;letter-spacing:.16em;cursor:pointer;transition:background .15s}
+.btn-go:hover{background:var(--orange);border-color:var(--orange)} /* ===== MANUAL 提示（游戏服务器地址 ≠ 中转站地址）===== */
+.manual .hint{grid-column:1/-1;font-size:11px;line-height:1.7;color:var(--sub);border-top:1px dashed var(--line);padding-top:7px;margin-top:2px}
+.manual .hint b{color:var(--orange);font-weight:600}
+.manual .hint code{font-family:var(--code);font-size:10.5px;background:var(--tag);padding:1px 4px;color:var(--ink)}
+.relay{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center; padding:10px 14px;border:1px solid var(--line);background:var(--paper);margin-top:12px}
+.relay .lbl{font-family:var(--code);font-size:10px;letter-spacing:.16em;color:var(--sub);white-space:nowrap}
+.relay input{width:100%;padding:8px 10px;border:1px solid var(--line);background:#fff;color:var(--ink); font:12.5px/1.4 ui-monospace,Consolas,monospace;transition:border-color .15s}
+.relay input:focus{outline:none;border-color:var(--orange)}
+.relay.need{border-color:var(--orange);box-shadow:inset 0 0 0 1px rgba(255,120,40,.18)}
+.relay-presets{grid-column:2/-1;display:flex;gap:6px;flex-wrap:wrap}
+.relay-presets .p{padding:3px 9px;border:1px solid var(--line);background:var(--tag);color:var(--sub); font-family:var(--code);font-size:10px;letter-spacing:.06em;cursor:pointer;transition:color .15s,border-color .15s}
+.relay-presets .p:hover{color:var(--orange);border-color:var(--orange)}
+.relay-presets .p.on{color:#fff;background:var(--block);border-color:var(--block)}
+.gate{display:none;padding:26px 16px;border:1px dashed var(--orange);background:var(--paper);margin:12px 0;text-align:center}
+.gate b{font-size:14px}
+.gate p{margin:8px 0 0;color:var(--sub);font-size:12px;line-height:1.7}
+.gate.show{display:block}
+/* ===== 版本/更新/素材 条 ===== */
+.strip{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px; border:1px solid var(--line);background:var(--paper);margin-top:12px; font-family:var(--code);font-size:10.5px;letter-spacing:.08em;color:var(--sub)}
+.strip b{color:var(--ink)}
+.strip .btn-upd{padding:5px 12px;background:var(--orange);color:#fff;border:0;cursor:pointer; font-family:var(--code);font-size:10.5px;letter-spacing:.12em;animation:rl-pulse 1.8s infinite}
+.strip .bar{flex:1 1 140px;height:5px;background:var(--tag);overflow:hidden;display:none}
+.strip .bar i{display:block;height:100%;width:0;background:var(--orange);transition:width .3s}
+#sp-prog{display:none;margin-top:10px;padding:9px 12px;border:1px solid var(--line); border-left:3px solid var(--orange);background:#fdf8f2;font-size:12px;line-height:1.6;color:var(--text)} /* ===== 页脚 ===== */
+footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--line); color:var(--sub);font-size:11px;line-height:1.8}
+footer .community{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+footer code{font-family:var(--code);background:var(--tag);padding:1px 5px;color:var(--ink)}
+/* 扫描线（只在 hero 区，极淡） */
+.scanline{position:absolute;left:0;right:0;top:0;height:2px;pointer-events:none; background:linear-gradient(90deg,transparent,var(--orange),transparent);opacity:.35; animation:rl-scan 7s linear infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:900px){ .srv{grid-template-columns:64px minmax(0,1fr)} .srv-side{grid-column:1/-1;border-left:0;border-top:1px dashed var(--line);flex-direction:row;align-items:center;flex-wrap:wrap} .hero{grid-template-columns:1fr} .manual{grid-template-columns:1fr}
+} </style>
+<script>
+/* 开机判定必须在首次绘制前完成：避免「先显示大厅再跳开机」的闪烁，也避免刷新时因缺少 sp-ready 而白屏。 */
+(function () { try { var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; var played = sessionStorage.getItem('sp-boot-done') === '1'; if (!reduce && !played) document.documentElement.classList.add('sp-booting'); } catch (e) {}
+})();
+</script>
+</head><body> <!-- 开机序列：圆环聚拢 → 描边绘制 → 标题收拢 → 揭示大厅 -->
+<div id="sp-boot" class="phase1"> <div class="bg-grid"></div> <div style="display:grid;place-items:center;justify-items:center"> <div class="rings"> <svg class="r1" viewBox="0 0 240 240"><circle cx="120" cy="120" r="104"/></svg> <svg viewBox="0 0 240 240"><circle cx="120" cy="120" r="76" stroke-dasharray="478" stroke-dashoffset="478"/></svg> <svg viewBox="0 0 240 240"><path d="M120 22 V46 M120 194 V218 M22 120 H46 M194 120 H218"/></svg> <div class="mid">卫戍协议<em>盟约</em></div> </div> <div class="title">卫戍协议：盟约</div> <div class="status"><span>CONNECTING</span><span class="bar"><i></i></span><span id="sp-boot-id">00</span></div> <div class="skip">点击任意处跳过</div> </div>
+</div> <div class="wrap"> <!-- 顶栏 --> <div class="top"> <div class="brand"> <b>STRONGHOLD</b><b>PROTOCOL</b> <i>SERV-LIST</i><em>COMMUNITY</em> </div> <div class="top-right"> <span class="chip">客户端 <b id="sp-ver-t" style="font-family:var(--code)">…</b></span> <button class="chip" id="sp-check-btn" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.12em">检查更新</button> </div> </div> <!-- HERO --> <div class="hero"> <div> <div class="kicker"><span>SELECTING NODES</span></div> <h1 class=""><b>卫戍协议：盟约</b></h1> <p class="">不同的驻地，相同的盟约。查看服务器状态与玩法，找到你的下一场模拟。</p> </div> <div class="nums"> <div class=""><b id="n-online">—</b><small>可用服务器</small></div> <div class=""><b id="n-total">—</b><small>收录节点</small></div> <div class=""><b id="n-poll">30</b><small>秒刷新</small></div> </div> </div> <!-- 版本/更新/素材 --> <div class="strip"> <span>CLIENT <b id="sp-ver">…</b></span> <span id="sp-upd-msg">正在检查更新…</span> <button class="btn-upd" id="sp-upd-btn" style="display:none">立即更新</button> <span class="bar" id="sp-upd-bar"><i></i></span> <span id="sp-assets">素材：检查中…</span> <button class="chip" id="sp-sync" style="cursor:pointer;border:1px solid var(--line);background:var(--tag);font-family:var(--code);letter-spacing:.1em" title="按当前服务器清单对齐本机素材（只下差异）">同步素材</button> </div> <div id="sp-prog"></div> <!-- 中转站地址（只需设置一次，会记住；可随时修改）--> <div class="relay" id="relay-bar"> <span class="lbl">中转站</span> <input id="relay-url" placeholder="中转站地址（例：https://wei.bbsmc.cn）—— 不是游戏服务器地址" autocomplete="off" spellcheck="false"> <button class="btn-go" id="relay-save">保存并刷新</button> <div class="relay-presets" id="relay-presets"></div> </div> <div class="gate" id="relay-gate"> <b>先设置中转站地址</b> <p>原来的中转大厅已失效。<br>请在上方填写中转站地址（或点快捷地址），<b>只需设置一次</b>，之后会自动记住；想换服随时回来改。</p> </div> <!-- 列表 --> <div class="sec-head" style="margin-top:22px"> <span>01 / NODE SELECT　服务器列表</span> <span class="r"><span id="sp-count">读取中…</span><span class="refresh" id="sp-refresh">刷新 ↻</span></span> </div> <div class="list" id="list"><div style="padding:18px 4px;color:var(--sub);font-size:12.5px">正在读取服务器目录…</div></div> <!-- 第三方 --> <div class="manual"> <span class="lbl">MANUAL</span> <input id="u" placeholder="游戏服务器地址（例：https://sp.bbsmc.cn）" autocomplete="off" spellcheck="false"> <button class="btn-go" id="go">进入</button> <a class="try" id="try-thick" style="margin:0;white-space:nowrap">用本机素材试</a> <div class="hint">↑ 这里填<b>游戏服务器地址</b>（直接开服的那台，例：<code>https://sp.bbsmc.cn</code>），<b>不是中转站地址</b>；中转站地址请填在上方「中转站」栏。</div> </div> <footer> <div class="community"> <span class="chip dark">CONNECTED BY THE COMMUNITY</span> <span>服务器数据来自社区目录 · 各服由社区维护者独立运营，版本与玩法以服务器实际内容为准。</span> </div> <div> 进入后素材由本机提供（页面仍来自该服务器，保持各服自己的界面与规则）； 未命中的资源会自动回退到该服务器。返回大厅：菜单「游戏 → 返回大厅」或 <code>Ctrl+H</code>。 </div> </footer>
+</div> <script>
+ const $ = (s) => document.querySelector(s);
+ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ let pollSec = 30;
+ function norm(v){ v = String(v || '').trim(); if (!v) return ''; if (!/^https?:\/\//i.test(v)) v = 'http://' + v; return v.replace(/\/+$/, ''); }
+
+ /* ===== 素材进度（主进程注入）===== */
+ const prog = document.getElementById('sp-prog');
+ window.__spProgress = (p) => {
+   if (!prog) return;
+   if (p.phase === 'done') {
+     prog.style.display = 'block'; prog.style.borderLeftColor = 'var(--ok)';
+     prog.textContent = '素材已就绪：' + p.files + ' 个文件';
+     setTimeout(() => { prog.style.display = 'none'; }, 6000);
+     return;
+   }
+   prog.style.display = 'block';
+   prog.style.borderLeftColor = 'var(--orange)';
+   if (p.phase === 'pack') prog.textContent = '装载素材 ' + p.done + '/' + p.total + ' …';
+   else if (p.phase === 'cdn') prog.textContent = p.total
+     ? ('从 CDN 下载素材 ' + p.done + '/' + p.total + '（' + (((p.got || 0) / 1048576).toFixed(1)) + ' MB）…')
+     : (p.text || '准备素材…');
+   else if (p.phase === 'unzip') prog.textContent = p.text || '解压素材包…';
+   else if (p.phase === 'error') { prog.style.borderLeftColor = 'var(--red)'; prog.textContent = '素材准备失败：' + (p.text || '') + '（仍可进入）'; }
+   else prog.textContent = p.text || '准备素材…';
+ };
+
+ /* ===== 版本 + 更新（启动检查一次 + 手动按钮）===== */
+ (async () => {
+   const vt = $('#sp-ver-t'), msg = $('#sp-upd-msg');
+   const btn = $('#sp-upd-btn'), bar = $('#sp-upd-bar'), fill = bar ? bar.querySelector('i') : null;
+   try {
+     const v = await window.sp.version();
+     if (vt) vt.textContent = 'v' + v.version;
+     const e = $('#sp-ver'); if (e) e.textContent = 'v' + v.version;
+   } catch (e) {}
+
+   window.sp.onUpdate((kind, d) => {
+     if (kind === 'available') {
+       if (msg) { msg.textContent = '发现新版本 v' + d.version; msg.style.color = 'var(--orange)'; }
+       if (btn) btn.style.display = '';
+       document.title = '【有新版本 v' + d.version + '】卫戍协议：盟约 · 选择服务器';
+     } else if (kind === 'progress') {
+       if (d.phase === 'download') {
+         if (msg) { msg.textContent = '下载更新 ' + d.percent + '%'; msg.style.color = 'var(--ok)'; }
+         if (bar) bar.style.display = 'block';
+         if (fill) fill.style.width = d.percent + '%';
+         if (btn) btn.style.display = 'none';
+       } else if (d.phase === 'installing') {
+         if (msg) msg.textContent = '下载完成，正在安装并重启…';
+         if (fill) fill.style.width = '100%';
+       }
+     }
+   });
+
+   if (btn) btn.onclick = async () => {
+     btn.disabled = true; btn.textContent = '更新中…';
+     if (msg) { msg.textContent = '开始更新…'; msg.style.color = 'var(--ok)'; }
+     const r = await window.sp.startUpdate();
+     if (!r.ok) {
+       if (msg) { msg.textContent = r.reason || '更新失败'; msg.style.color = 'var(--red)'; }
+       btn.disabled = false; btn.textContent = '重试'; btn.style.display = '';
+     }
+   };
+
+   const checkBtn = document.getElementById('sp-check-btn');
+   if (checkBtn) checkBtn.onclick = async () => {
+     checkBtn.disabled = true;
+     const old = checkBtn.textContent;
+     checkBtn.textContent = '检查中…';
+     if (msg) { msg.textContent = '正在检查更新…'; msg.style.color = 'var(--sub)'; }
+     try {
+       const r = await window.sp.checkUpdate();
+       if (r.has) {
+         if (msg) { msg.textContent = '发现新版本 v' + r.version; msg.style.color = 'var(--orange)'; }
+         if (btn) btn.style.display = '';
+       } else if (msg) {
+         msg.textContent = r.error ? ('检查失败：' + r.error) : '已是最新版本';
+         msg.style.color = r.error ? 'var(--red)' : 'var(--ok)';
+       }
+     } catch (e) {
+       if (msg) { msg.textContent = '检查失败'; msg.style.color = 'var(--red)'; }
+     }
+     checkBtn.disabled = false;
+     checkBtn.textContent = old;
+   };
+
+   // 启动时自动检查一次（不轮询；之后靠右上角手动）
+   try {
+     const r = await window.sp.checkUpdate();
+     if (msg && !r.has) { msg.textContent = r.error ? ('检查失败：' + r.error) : '已是最新'; msg.style.color = 'var(--sub)'; }
+   } catch (e) {}
+ })();
+
+ /* ===== 素材状态（每 3 秒，只读本地）===== */
+ // 显示清单版本（tag），而不是"已完整"——文件数够 ≠ 与服务器一致（见 docs/06 §11.5.1）
+ const updAssets = async () => {
+   const a = await window.sp.assets().catch(() => null);
+   const el = $('#sp-assets');
+   if (!a || !el) return;
+   const mb = (a.bytes / 1048576).toFixed(0);
+   if (a.ready && a.tag) {
+     el.textContent = '素材：' + a.tag + ' · ' + a.files + ' 个文件 · ' + mb + ' MB';
+     el.style.color = 'var(--ok)';
+     el.title = '本机素材清单版本 ' + a.tag;
+   } else if (a.ready) {
+     el.textContent = '素材：' + a.files + ' 个文件 · ' + mb + ' MB（未记录版本）';
+     el.style.color = 'var(--amber)';
+     el.title = '还没有素材版本记录，下次启动会自动比对一次清单';
+   } else {
+     el.textContent = '素材：准备中 · ' + a.files + ' 个文件 · ' + mb + ' MB';
+     el.style.color = 'var(--amber)';
+     el.title = '素材还在准备中';
+   }
+ };
+ updAssets();
+ setInterval(updAssets, 3000);
+  /* ===== 同步素材（大厅按钮）=====
+     按「当前服务器」的清单对齐本机素材：只下差异，带进度；结束后刷新状态。
+     出错/中止在按钮上显示原因，不弹窗打断。 */
+  (function initSyncButton() {
+    const btn = $('#sp-sync');
+    if (!btn) return;
+    let busy = false;
+    const label = (t) => { btn.textContent = t; };
+    const progress = (p) => {
+      if (!p) return;
+      if (p.phase === 'manifest') label('读清单…');
+      else if (p.phase === 'check') label('校验 ' + (p.done || 0) + '/' + (p.total || '?'));
+      else if (p.phase === 'download') label('下载 ' + (p.done || 0) + '/' + (p.total || '?'));
+      else if (p.phase === 'done') label('完成');
+    };
+    try { window.sp.onAssetsSync(progress); } catch (e) { /* ignore */ }
+    btn.addEventListener('click', async () => {
+      if (busy) return;
+      busy = true;
+      btn.disabled = true;
+      const old = btn.style.opacity;
+      btn.style.opacity = '.7';
+      label('同步中…');
+      try {
+        const r = await window.sp.syncAssets();
+        if (!r || r.ok === false) {
+          label(r && r.reason === 'version-mismatch' ? '版本不同' : '失败');
+          btn.title = r && r.reason === 'version-mismatch'
+            ? ('服务器版本 ' + (r.serverTag || '?') + ' 与本机 ' + (r.localTag || '?') + ' 不一致，已取消')
+            : ('同步失败：' + ((r && r.error) || '未知错误'));
+        } else if (r.stopped) {
+          label(r.stopped === 'aborted' ? '已中止' : '服务器不配合');
+          btn.title = '已中止：' + (r.failed || 0) + ' 个失败';
+        } else {
+          label(r.updated ? '已更新 ' + r.updated : '已是最新');
+          btn.title = '版本 ' + (r.tag || '?') + '，更新 ' + (r.updated || 0) + ' 个文件，失败 ' + (r.failed || 0);
+        }
+      } catch (e) {
+        label('失败');
+        btn.title = String((e && e.message) || e);
+      } finally {
+        updAssets();
+        setTimeout(() => {
+          busy = false;
+          btn.disabled = false;
+          btn.style.opacity = old;
+          label('同步素材');
+        }, 4000);
+      }
+    });
+  })();
+
+
+
+ /* ===== 列表渲染 ===== */
+ function render(servers) {
+   const box = $('#list');
+   box.innerHTML = '';
+   const online = servers.filter((s) => (s.status && s.status.state) === 'online').length;
+
+   const setNum = (sel, val) => {
+     const el = $(sel); if (!el) return;
+     const old = el.textContent;
+     el.textContent = val;
+     if (old !== '—' && old !== String(val)) { el.classList.remove('changed'); void el.offsetWidth; el.classList.add('changed'); }
+   };
+   setNum('#n-online', online);
+   setNum('#n-total', servers.length);
+   const pollEl = document.getElementById('n-poll'); if (pollEl) pollEl.textContent = pollSec;
+   const cnt = $('#sp-count'); if (cnt) cnt.textContent = servers.length + ' 个节点 · ' + online + ' 在线';
+
+   servers.forEach((s, idx) => {
+     const st = (s.status && s.status.state) || 'unknown';
+     const ver = String((s.status && s.status.version) || s.version || '').trim();
+     const thick = (s.__thick === true) || (s.__thick == null && /^v?0\.(?:3|[4-9]|\d{2,})/.test(ver));
+     const guessed = thick && s.__thick !== true;
+     const on = s.status && s.status.online != null ? s.status.online : '—';
+     const lat = s.status && s.status.latencyMs != null ? s.status.latencyMs + 'ms' : '—';
+     const rooms = s.status && s.status.rooms != null ? s.status.rooms : '—';
+     const tags = (s.tags || []).map((t) => '<span class="tag live">' + esc(t) + '</span>').join('');
+     const nodes = (s.nodes || []).map((n) => '<a class="try" href="#" data-open="' + esc(n.url) + '" title="' + esc(n.name) + '">' + esc(n.name) + '</a>').join('');
+     const href = esc(String(s.url));
+
+     const el = document.createElement('div');
+     el.className = 'srv';
+     el.style.animationDelay = Math.min(idx * 55, 700) + 'ms';
+     el.innerHTML = [
+       '<div class="tile"><b>' + String(idx + 1).padStart(2, '0') + '</b><small>NODE</small></div>',
+       '<div class="srv-main">',
+       '  <div class="srv-title">',
+       '    <span class="dot ' + (st === 'online' ? '' : (st === 'unreachable' ? 'off' : 'unk')) + '"></span>',
+       '    <span class="name">' + esc(s.title || s.id) + '</span>',
+       '    <span class="meta">' + esc(s.region || '') + (s.maintainer ? ' · ' + esc(s.maintainer) : '') + (ver ? ' · v' + esc(ver) : '') + '</span>',
+       '    ' + (thick ? '<span class="tag ok">原版 0.3.0' + (guessed ? '（推测）' : '') + '</span>' : '<span class="tag">自建分发</span>'),
+       '  </div>',
+       '  <div class="srv-notes">' + esc(s.notes || '—') + '</div>',
+       '  <div class="srv-tags">' + tags + '</div>',
+       '</div>',
+       '<div class="srv-side">',
+       '  <div class="stats">',
+       '    <div><b>' + esc(on) + '</b><small>在线</small></div>',
+       '    <div><b>' + esc(lat) + '</b><small>延迟</small></div>',
+       '    <div><b>' + esc(rooms) + '</b><small>房间</small></div>',
+       '  </div>',
+       '  <a class="enter" href="#" data-open="' + href + '">进 入 →</a>',
+       '  ' + (nodes ? '<div class="nodes-row">' + nodes + '</div>' : ''),
+       '</div>'
+     ].join('\n');
+
+     el.querySelectorAll('[data-open]').forEach((a) => {
+       a.onclick = (ev) => {
+         ev.preventDefault();
+         const u = a.getAttribute('data-open');
+         try { localStorage.setItem('sp-last', u); } catch (e) {}
+         window.sp.open(u);
+       };
+     });
+     box.appendChild(el);
+
+     // 能力探测（异步填标签）
+     window.sp.probe(s.url).then((ok) => {
+       const t = el.querySelector('.tag');
+       if (!t) return;
+       if (ok === true) { t.className = 'tag ok'; t.textContent = '原版 0.3.0'; }
+       else if (ok === false) { t.className = 'tag'; t.textContent = '自建分发'; }
+       else { t.className = 'tag maybe'; t.textContent = '探测超时'; }
+     }).catch(() => {});
+   });
+ }
+
+ /* ===== 中转站地址：首次输入 → 记住 → 可随时修改 ===== */
+ let RELAY = '';
+ function renderPresets(list) {
+   const box = $('#relay-presets'); if (!box) return;
+   box.innerHTML = '';
+   (list || []).forEach((u) => {
+     const b = document.createElement('span');
+     b.className = 'p' + (u === RELAY ? ' on' : '');
+     b.textContent = String(u).replace(/^https?:\/\//, '');
+     b.title = u;
+     b.onclick = () => { const inp = $('#relay-url'); if (inp) inp.value = u; saveRelay(true); };
+     box.appendChild(b);
+   });
+ }
+ function showGate(on) {
+   const g = $('#relay-gate'); if (g) g.classList.toggle('show', !!on);
+   const bar = $('#relay-bar'); if (bar) bar.classList.toggle('need', !!on);
+ }
+ async function saveRelay(andReload) {
+   const inp = $('#relay-url');
+   const raw = inp ? inp.value : '';
+   const r = await window.sp.relaySet(raw);
+   if (!r.ok) { showGate(true); return; }
+   RELAY = r.url;
+   if (inp) inp.value = RELAY;
+   showGate(false);
+   try { localStorage.setItem('sp-relay', RELAY); } catch (e) {}
+   // relay-set 已直接返回合并后的快捷列表（含用户刚输入的这个）→ 立即刷新，无需再拉一次
+   if (Array.isArray(r.presets)) renderPresets(r.presets);
+   else { const rg = await window.sp.relayGet(); renderPresets((rg && rg.presets) || []); }
+   if (andReload !== false) await loadList(true);
+ }
+ async function relayInit() {
+   const r = await window.sp.relayGet();
+   RELAY = (r && r.url) || '';
+   const inp = $('#relay-url'); if (inp) inp.value = RELAY;
+   renderPresets((r && r.presets) || []);
+   showGate(!RELAY);
+   if (RELAY) { await loadList(false); }
+   else {
+     $('#list').innerHTML = '<div style="padding:18px 4px;color:var(--orange);font-size:12.5px">请先在上方填写中转站地址（只需设置一次，之后会自动记住）</div>';
+     if (location.hash === '#relay') { setTimeout(() => inp && inp.focus(), 500); }
+   }
+ }
+
+ async function loadList(showBusy) {
+   const rf = $('#sp-refresh');
+   if (showBusy && rf) rf.classList.add('busy');
+   const r = await window.sp.servers();
+   if (showBusy && rf) rf.classList.remove('busy');
+   if (!r.ok) {
+     if (r.needRelay) {
+       showGate(true);
+       $('#list').innerHTML = '<div style="padding:18px 4px;color:var(--orange);font-size:12.5px">请先在上方填写中转站地址（只需设置一次，之后会自动记住）</div>';
+       return;
+     }
+     showGate(false);
+     $('#list').innerHTML = '<div style="padding:18px 4px;color:var(--red);font-size:12.5px">中转站读取失败：' + esc(r.error || '') + '（可修改上方「中转站」地址重试，或用下方 MANUAL 直接填服务器地址进入）</div>';
+     return;
+   }
+   showGate(false);
+   RELAY = r.relay || RELAY;
+   pollSec = r.pollSeconds || 30;
+   render((r.servers || []).slice().sort((a, b) => (a.order || 99) - (b.order || 99)));
+ }
+
+ $('#sp-refresh').onclick = () => loadList(true);
+ $('#relay-save').onclick = () => saveRelay(true);
+ $('#relay-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); saveRelay(true); } });
+ $('#relay-url').addEventListener('input', () => { const bar = $('#relay-bar'); if (bar) bar.classList.remove('need'); });
+ $('#go').onclick = () => { const u = norm($('#u').value); if (u) { try { localStorage.setItem('sp-last', u); } catch (e) {} window.sp.open(u); } };
+ $('#try-thick').onclick = (ev) => { ev.preventDefault(); const u = norm($('#u').value); if (u) window.sp.open(u); };
+ $('#u').addEventListener('input', () => { try { localStorage.setItem('sp-last', $('#u').value); } catch (e) {} });
+ try { const last = localStorage.getItem('sp-last'); if (last) $('#u').value = last; } catch (e) {}
+
+ relayInit();
+
+ /* 服务器状态定时刷新（默认 30s；与"客户端版本检查"无关） */
+ setInterval(() => {
+   if (document.hidden) return;
+   if (document.getElementById('sp-boot')) return;
+   if (!RELAY) return;
+   loadList(false);
+ }, Math.max(15, pollSec) * 1000);
+
+ /* ===== 开机序列（v1：圆环聚拢 + 描边 + 标题收拢 + 揭示）===== */
+ (() => {
+   const boot = document.getElementById('sp-boot');
+   if (!boot) return;
+   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+   const htmlEl = document.documentElement;
+   const showNow = () => htmlEl.classList.remove('sp-booting');
+
+   try {
+     if (!reduce && sessionStorage.getItem('sp-boot-done') === '1') { boot.remove(); showNow(); return; }
+   } catch (e) {}
+   if (reduce) { boot.remove(); showNow(); return; }
+
+   const barEl = boot.querySelector('.status .bar i');
+   const idEl = document.getElementById('sp-boot-id');
+   const total = 2500;
+   const t0 = performance.now();
+   let raf = 0;
+   const tick = () => {
+     const p = Math.min(1, (performance.now() - t0) / total);
+     if (barEl) barEl.style.width = (p * 100).toFixed(1) + '%';
+     if (idEl) idEl.textContent = String(Math.min(99, Math.round(p * 99))).padStart(2, '0');
+     if (p < 1) raf = requestAnimationFrame(tick);
+   };
+   raf = requestAnimationFrame(tick);
+
+   setTimeout(() => boot.classList.replace('phase1', 'phase2'), 260);
+   setTimeout(() => boot.classList.replace('phase2', 'phase3'), 1400);
+   setTimeout(() => finish(), total + 300);
+
+   let done = false;
+   function finish() {
+     if (done) return;
+     done = true;
+     cancelAnimationFrame(raf);
+     try { sessionStorage.setItem('sp-boot-done', '1'); } catch (e) {}
+     boot.classList.add('out');
+     htmlEl.classList.remove('sp-booting');
+     document.body.classList.add('sp-ready');
+     setTimeout(() => boot.remove(), 700);
+   }
+   boot.addEventListener('click', finish);
+   window.addEventListener('keydown', (e) => {
+     if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') finish();
+   });
+ })();
+</script>
+</body></html>

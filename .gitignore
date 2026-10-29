@@ -1,0 +1,87 @@
+# ============================================================
+# 卫戍协议：盟约 · 桌面客户端 —— .gitignore
+#   原则：绝不提交游戏美术素材、第三方版权物、构建产物、本地数据
+# ============================================================
+
+# ---- 游戏美术 / 音频素材（鹰角版权物，绝不入库）----
+public/assets/
+assets/
+*.skel
+*.atlas
+*.webp
+*.png
+*.jpg
+*.jpeg
+*.ogg
+*.mp3
+*.mp4
+*.wav
+*.m4a
+!docs/**/*.png
+
+# ---- 构建产物（走 GitHub Release 附件，不入库）----
+dist/
+out/
+node_modules/
+*.exe
+*.msi
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.blockmap
+*.asar
+*.asar.unpacked/
+release/Electron发布/
+release/Electron发布-data/
+release/cdn-v0.3.3/
+release/发布端/
+
+# ---- 本机数据 / 运行时 ----
+runtime/
+StrongholdLauncher-data/
+*-data/
+_data/
+.cache/
+
+# ---- 素材包 / 大文件 ----
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# ---- 临时 / 备份 ----
+temp/
+backup/
+tmp/
+*.log
+*.tmp
+*.bak
+*~
+*.swp
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- 密钥 / 凭据（安全）----
+*.pem
+*.key
+*.p12
+.env
+.env.*
+*_rsa
+*_rsa.pub
+.vps-credentials*
+secrets*
+
+# ---- 上游整树（另仓库，不在此）----
+Stronghold-Protocol-upstream/
+
+# ---- 保留：许可证与声明必须入库 ----
+!LICENSE
+!NOTICE.md
+!THIRD-PARTY-NOTICES.md

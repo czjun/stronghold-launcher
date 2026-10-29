@@ -1,0 +1,49 @@
+{
+  "name": "stronghold-launcher-electron",
+  "productName": "StrongholdLauncher",
+  "version": "2.3.6",
+  "description": "卫戍协议：盟约 · Electron 客户端（页面来自目标服，素材走本机磁盘）",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "publish": [ { "provider": "generic", "url": "https://wei.czjun.top:11451/launcher/electron/" } ],
+    "appId": "top.czjun.stronghold.launcher",
+    "productName": "StrongholdLauncher",
+    "files": [
+      "main.js",
+      "preload.cjs",
+      "selection.html",
+      "src/**/*",
+      "package.json"
+    ],
+    "portable": {
+      "artifactName": "StrongholdLauncher-${version}-portable.${ext}"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "artifactName": "StrongholdLauncher-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "artifactName": "StrongholdLauncher-${version}-setup.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "卫戍协议：盟约"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}
